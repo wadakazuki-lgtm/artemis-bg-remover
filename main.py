@@ -393,6 +393,7 @@ class AvatarEditorApp(ctk.CTk):
         self.pan_x = cw - (cw - self.pan_x) * (self.zoom_level / old_zoom)
         self.pan_y = ch - (ch - self.pan_y) * (self.zoom_level / old_zoom)
         self.update_canvas()
+
     def load_image(self, path):
         try:
             self.image_path = path
