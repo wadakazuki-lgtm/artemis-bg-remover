@@ -1,39 +1,39 @@
 # Artemis Background Remover
 
-Artemis Background Remover is a powerful, standalone GUI application designed for removing backgrounds and precisely editing transparency masks of images and avatars.
+Artemis Background Remover は、画像やアバターの背景除去と、透明度マスクの精密な編集を行うスタンドアロン GUI アプリケーションです。
 
-## Features
-- **AI Background Removal**: Automatically remove image backgrounds using `rembg`.
-- **Smart Flood Fill**: Intelligently remove contiguous regions of similar colors with an adjustable tolerance slider.
-- **Manual Brush Tools**: Use the erase and restore brushes with adjustable brush sizes to fine-tune masks.
-- **High-Performance Infinite Zoom & Pan**: A hardware-accelerated viewport-based rendering engine allows zooming up to 4000% without lag.
-- **Dark Mode UI**: A premium, modern dark mode interface built with CustomTkinter.
+## 機能
+- **AI による背景除去**: `rembg` を使って、画像の背景を自動で除去します。
+- **スマート塗りつぶし**: 許容値スライダーで調整しながら、近い色の連続領域をまとめて除去できます。
+- **手動ブラシ**: ブラシサイズを調整できる消去・復元ブラシで、マスクを細かく整えられます。
+- **高性能な無限ズームとパン**: ハードウェアアクセラレーションを使ったビューポート描画により、最大 4000% まで遅延なくズームできます。
+- **ダークモード UI**: CustomTkinter で作られた、モダンなダークモードの画面です。
 
-## Installation
+## インストール
 
-We recommend using a virtual environment:
+仮想環境の利用を推奨します。
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # On Windows, use .venv\Scripts\activate
+source .venv/bin/activate  # Windows では .venv\Scripts\activate を使います
 pip install -r requirements.txt
 ```
 
-## Usage
+## 使い方
 
-Run the main application:
+メインアプリケーションを起動します。
 
 ```bash
 python main.py
 ```
 
-### Controls
-- **Scroll Wheel**: Vertical Pan / Zoom (with Ctrl/Cmd)
-- **Shift + Scroll**: Horizontal Pan
-- **Right Click / Middle Click / Space+Drag**: Pan Canvas
-- **Left Click**: Apply the selected tool (Fill / Erase / Restore)
+### 操作
+- **マウスホイール**: 縦方向のパン / ズーム（Ctrl/Cmd 同時押し）
+- **Shift + ホイール**: 横方向のパン
+- **右クリック / 中クリック / Space+ドラッグ**: キャンバスのパン
+- **左クリック**: 選択中のツールを適用（塗りつぶし / 消去 / 復元）
 
-## License
+## ライセンス
 
-This project is licensed under the GNU General Public License v3.0 (GPLv3).
-See the `LICENSE` file for more details.
+このプロジェクトは GNU General Public License v3.0 (GPLv3) の下でライセンスされています。
+詳細は `LICENSE` ファイルを参照してください。
