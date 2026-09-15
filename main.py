@@ -63,8 +63,8 @@ class AvatarEditorApp(ctk.CTk):
         self.lift()
         self.focus_force()
         # macOS/Windowsで他のウィンドウに隠れないよう起動時のみ最前面化し、その後解除する
-        self.attributes("-topmost", True)
-        self.after(500, lambda: self.attributes("-topmost", False))
+        self._set_topmost_safe(True)
+        self.after(500, lambda: self._set_topmost_safe(False))
         
         # 外観のカラー設定
         self.configure(fg_color=C_BG[1])
@@ -394,6 +394,31 @@ class AvatarEditorApp(ctk.CTk):
         self.pan_y = ch - (ch - self.pan_y) * (self.zoom_level / old_zoom)
         self.update_canvas()
 
+    def _set_topmost_safe(self, enabled: bool) -> None:
+        # Tkの最前面属性を設定する（非対応・失敗時は例外を握りつぶさず stderr に出す）
+        try:
+            self.attributes("-topmost", enabled)
+        except tk.TclError as err:
+            print(
+                f"[警告] -topmost の設定に失敗しました (enabled={enabled}): {err}",
+                file=sys.stderr,
+            )
+
+    def _run_with_modal_focus(self, action):
+        # ファイルダイアログ等の前に最前面固定を解除し、終了後も常時最前面には戻さない
+        self._set_topmost_safe(False)
+        try:
+            return action()
+        finally:
+            self._set_topmost_safe(False)
+
+    def _show_error_dialog(self, title: str, message: str) -> None:
+        # messagebox がメインウィンドウの裏に隠れないよう、表示中だけ最前面を解除する
+        def show_error() -> None:
+            messagebox.showerror(title, message)
+
+        self._run_with_modal_focus(show_error)
+
     def load_image(self, path):
         try:
             self.image_path = path
@@ -406,10 +431,8 @@ class AvatarEditorApp(ctk.CTk):
             self.lbl_status.configure(text=f"読込完了: {os.path.basename(path)} ({img.width}x{img.height})")
             self.update_canvas()
         except Exception as e:
-            self.attributes("-topmost", False)
-            messagebox.showerror("エラー", f"画像の読み込みに失敗しました:\n{e}")
-            self.attributes("-topmost", True)
-            
+            self._show_error_dialog("エラー", f"画像の読み込みに失敗しました:\n{e}")
+
     def load_fallback_image(self):
         # ワークスペース内の preset アバターを探索
         import glob
@@ -432,47 +455,46 @@ class AvatarEditorApp(ctk.CTk):
             self.lbl_status.configure(text="アバター画像が見つからないため、一時的なプレースホルダーを表示中")
             
     def open_image_dialog(self):
-        # -topmost による最前面固定を一時解除してファイルダイアログを前面に出す
-        self.attributes("-topmost", False)
-        path = filedialog.askopenfilename(
-            parent=self,
-            filetypes=[("PNG Images", "*.png"), ("All Files", "*.*")]
-        )
-        self.attributes("-topmost", True)
+        def pick_open_path() -> str:
+            return filedialog.askopenfilename(
+                parent=self,
+                filetypes=[("PNG Images", "*.png"), ("All Files", "*.*")],
+            )
+
+        path = self._run_with_modal_focus(pick_open_path)
         if path:
             self.load_image(path)
-            
+
     def save_image(self):
         if not self.image_path:
-            # 別名保存: -topmost を一時解除してダイアログを前面に出す
-            self.attributes("-topmost", False)
-            path = filedialog.asksaveasfilename(
-                parent=self,
-                defaultextension=".png",
-                filetypes=[("PNG Image", "*.png")]
-            )
-            self.attributes("-topmost", True)
+
+            def pick_save_path() -> str:
+                return filedialog.asksaveasfilename(
+                    parent=self,
+                    defaultextension=".png",
+                    filetypes=[("PNG Image", "*.png")],
+                )
+
+            path = self._run_with_modal_focus(pick_save_path)
             if not path:
                 return
             self.image_path = path
 
         try:
             self.current_img.save(self.image_path, "PNG")
-            # -topmost設定によりmessageboxが裏に隠れてフリーズするため、
-            # 保存完了はステータスバーのみで通知する
+            # 保存完了はステータスバーのみで通知する（モーダル不要のためダイアログは出さない）
             self.lbl_status.configure(
                 text=f"✓ 保存完了: {os.path.basename(self.image_path)}"
             )
         except PermissionError:
             self.lbl_status.configure(text="⚠ 保存失敗: ファイルが使用中です")
-            self.attributes("-topmost", False)
-            messagebox.showerror("保存エラー", f"ファイルへの書き込み権限がありません:\n{self.image_path}")
-            self.attributes("-topmost", True)
+            self._show_error_dialog(
+                "保存エラー",
+                f"ファイルへの書き込み権限がありません:\n{self.image_path}",
+            )
         except Exception as e:
             self.lbl_status.configure(text=f"⚠ 保存失敗: {e}")
-            self.attributes("-topmost", False)
-            messagebox.showerror("保存エラー", f"画像の保存に失敗しました:\n{e}")
-            self.attributes("-topmost", True)
+            self._show_error_dialog("保存エラー", f"画像の保存に失敗しました:\n{e}")
 
     # ==========================================
     # 画像編集ロジック (Undo/Redo 含む)
@@ -553,14 +575,13 @@ class AvatarEditorApp(ctk.CTk):
             self.update_canvas()
             self.lbl_status.configure(text="AI背景透過が成功しました！残った内側を調整してください。")
         except ImportError:
-            self.attributes("-topmost", False)
-            messagebox.showerror("インポートエラー", "rembg ライブラリがロードできません。仮想環境の依存関係を確認してください。")
-            self.attributes("-topmost", True)
+            self._show_error_dialog(
+                "インポートエラー",
+                "rembg ライブラリがロードできません。仮想環境の依存関係を確認してください。",
+            )
             self.lbl_status.configure(text="AI背景透過に失敗しました（ライブラリ不在）")
         except Exception as e:
-            self.attributes("-topmost", False)
-            messagebox.showerror("エラー", f"AI背景透過実行中にエラーが発生しました:\n{e}")
-            self.attributes("-topmost", True)
+            self._show_error_dialog("エラー", f"AI背景透過実行中にエラーが発生しました:\n{e}")
             self.lbl_status.configure(text="AI背景透過エラー")
 
     # ==========================================
