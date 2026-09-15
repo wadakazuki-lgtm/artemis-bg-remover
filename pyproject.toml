@@ -1,0 +1,7 @@
+[tool.ruff]
+# このパッケージ直下をソースルートとして扱う
+src = ["."]
+
+[tool.ruff.lint.isort]
+# 親ディレクトリから lint してもローカルモジュールとして並べる
+known-first-party = ["flood_fill", "theme"]

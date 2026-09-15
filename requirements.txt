@@ -2,3 +2,4 @@ customtkinter>=5.2.2
 Pillow>=10.2.0
 rembg>=2.0.50
 numpy>=1.26.0
+pytest>=8.0.0

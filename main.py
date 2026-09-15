@@ -17,19 +17,31 @@
 #    スクロールバー操作やドラッグ (パン) 時にも背景の市松模様が動かず固定されている視覚効果を作る。
 # ==============================================================================
 
+import math
 import os
 import sys
-import math
 import tkinter as tk
 from tkinter import filedialog, messagebox
+
 import customtkinter as ctk
-from PIL import Image, ImageTk, ImageChops, ImageFilter, ImageOps
-import numpy as np
-from collections import deque
+from PIL import Image, ImageTk
+
+from flood_fill import smart_flood_fill_transparent
 
 # 既存のテーマ設定を取り込む
 try:
-    from theme import C_BG, C_PANEL, C_TEXT, C_TEXT_LIGHT, C_PRIMARY, C_PRIMARY_HOVER, C_SECONDARY, C_SECONDARY_HOVER, C_DANGER, C_DANGER_HOVER
+    from theme import (
+        C_BG,
+        C_DANGER,
+        C_DANGER_HOVER,
+        C_PANEL,
+        C_PRIMARY,
+        C_PRIMARY_HOVER,
+        C_SECONDARY,
+        C_SECONDARY_HOVER,
+        C_TEXT,
+        C_TEXT_LIGHT,
+    )
     # 文字列の場合はタプルにノーマライズ
     C_BG = (C_BG, C_BG) if isinstance(C_BG, str) else C_BG
     C_PANEL = (C_PANEL, C_PANEL) if isinstance(C_PANEL, str) else C_PANEL
@@ -588,58 +600,26 @@ class AvatarEditorApp(ctk.CTk):
     # 高度な Flood Fill 透過アルゴリズム
     # ==========================================
     def apply_smart_flood_fill(self, start_x, start_y):
-        self.push_state()
-        
-        img = self.current_img.copy()
-        width, height = img.size
-        pixels = img.load()
-        
-        # スタート座標の色をサンプリング
-        target_color = pixels[start_x, start_y]
-        tr, tg, tb, ta = target_color
-        
-        # 既に透明な箇所は何もしない
-        if ta == 0 and self.tolerance == 0:
+        # GUI から核ロジックへ委譲する（詳細は flood_fill.py / 回帰テスト参照）
+        if self.current_img is None:
             return
-            
-        # 塗りつぶしの探索 (BFS)
-        queue = deque([(start_x, start_y)])
-        visited = np.zeros((width, height), dtype=bool)
-        visited[start_x, start_y] = True
-        
-        # 高速アクセスのためのToleranceしきい値判定
-        tol = self.tolerance
-        
-        # 塗りつぶし実行
-        fill_pixels = []
-        
-        while queue:
-            cx, cy = queue.popleft()
-            fill_pixels.append((cx, cy))
-            
-            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                nx, ny = cx + dx, cy + dy
-                
-                if 0 <= nx < width and 0 <= ny < height:
-                    if not visited[nx, ny]:
-                        nr, ng, nb, na = pixels[nx, ny]
-                        
-                        # 類似度判定 (RGB空間のユーグリッド距離、または各チャンネル個別しきい値判定)
-                        # アルファ値も判定材料とする（すでに半透明になっている境界部分の保護）
-                        color_diff = abs(int(nr) - int(tr)) + abs(int(ng) - int(tg)) + abs(int(nb) - int(tb))
-                        
-                        # 合計差が3チャンネル合計の許容値以内か判定 (tol * 3)
-                        if color_diff <= tol * 3:
-                            visited[nx, ny] = True
-                            queue.append((nx, ny))
-                            
-        # 色変更処理 (完全に透明にする)
-        for x, y in fill_pixels:
-            pixels[x, y] = (0, 0, 0, 0)
-            
-        self.current_img = img
+
+        result = smart_flood_fill_transparent(
+            self.current_img,
+            start_x,
+            start_y,
+            self.tolerance,
+        )
+
+        # 透明起点など「変更なし」のときは Undo 履歴を積まない
+        if not result.changed:
+            self.lbl_status.configure(text=result.message)
+            return
+
+        self.push_state()
+        self.current_img = result.image
         self.update_canvas()
-        self.lbl_status.configure(text=f"領域透過: {len(fill_pixels)} ピクセルを透明にしました。")
+        self.lbl_status.configure(text=result.message)
 
     # ==========================================
     # ブラシ（手動消しゴム・復元）
